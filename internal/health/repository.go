@@ -85,4 +85,3 @@ func (r *RedisRepository) Delete(ctx context.Context, deviceID string) error {
 	key := r.key(deviceID)
 	return r.client.Del(ctx, key).Err()
 }
-

@@ -3,15 +3,15 @@ package worker
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
-    "log"
 
 	"github.com/Rin0913/monitor/internal/health"
 	"github.com/Rin0913/monitor/internal/scheduler"
 )
 
 type InternalWorker struct {
-    name       string
+	name       string
 	engine     *Engine
 	scheduler  *scheduler.Scheduler
 	healthRepo health.Repository
@@ -19,7 +19,7 @@ type InternalWorker struct {
 
 func NewInternalWorker(name string, engine *Engine, repo health.Repository, s *scheduler.Scheduler) *InternalWorker {
 	return &InternalWorker{
-        name:       name,
+		name:       name,
 		engine:     engine,
 		scheduler:  s,
 		healthRepo: repo,
@@ -63,13 +63,13 @@ func (w *InternalWorker) Run(ctx context.Context) error {
 		h := w.engine.Handle(ctx, job)
 		if h == nil {
 			log.Printf("[WARN] worker %s handler returned nil health status for deviceID=%s\n",
-                w.name, job.DeviceID)
+				w.name, job.DeviceID)
 			continue
 		}
 
 		ttl := time.Duration(job.TimeoutS*3) * time.Second
-        
-        h.Runner = w.name
+
+		h.Runner = w.name
 
 		if err := w.healthRepo.Save(ctx, h, ttl); err != nil {
 			log.Printf("[ERROR] worker %s failed to save health status for deviceID=%s: %v\n",
@@ -81,4 +81,3 @@ func (w *InternalWorker) Run(ctx context.Context) error {
 			w.name, h.DeviceID, h.Status, h.Latency)
 	}
 }
-

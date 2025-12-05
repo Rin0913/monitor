@@ -1,14 +1,14 @@
 package scheduler
 
 import (
+	"container/heap"
 	"context"
+	"sync"
 	"testing"
 	"time"
-    "container/heap"
-    "sync"
 
-    "github.com/Rin0913/monitor/internal/health"
-    "github.com/Rin0913/monitor/internal/device"
+	"github.com/Rin0913/monitor/internal/device"
+	"github.com/Rin0913/monitor/internal/health"
 )
 
 func TestNextJobReschedule(t *testing.T) {
@@ -94,10 +94,10 @@ func TestBootstrapUsesHealthForNextRun(t *testing.T) {
 		t.Fatalf("first job should be no-health, got %s", j1.DeviceID)
 	}
 
-    j2, err := s.TryNextJob(ctx)
-    if j2 != nil {
-        t.Fatalf("second job is not produced yet")
-    }
+	j2, err := s.TryNextJob(ctx)
+	if j2 != nil {
+		t.Fatalf("second job is not produced yet")
+	}
 }
 
 // Some trivial definitions
@@ -115,10 +115,10 @@ func (r *fakeDeviceRepo) Save(ctx context.Context, d *device.Device) error {
 }
 
 func (r *fakeDeviceRepo) GetByID(ctx context.Context, id string) (*device.Device, error) {
-    return nil, nil
+	return nil, nil
 }
-func (r *fakeDeviceRepo) DeleteByID(ctx context.Context, id string) (error) {
-    return nil
+func (r *fakeDeviceRepo) DeleteByID(ctx context.Context, id string) error {
+	return nil
 }
 
 type fakeHealthRepo struct {
@@ -132,8 +132,8 @@ func (r *fakeHealthRepo) Get(ctx context.Context, id string) (*health.HealthStat
 	return r.m[id], nil
 }
 
-func (r *fakeHealthRepo) Delete(ctx context.Context, id string) (error) {
-    return nil
+func (r *fakeHealthRepo) Delete(ctx context.Context, id string) error {
+	return nil
 }
 
 func (r *fakeHealthRepo) Save(ctx context.Context, h *health.HealthStatus, ttl time.Duration) error {
@@ -143,4 +143,3 @@ func (r *fakeHealthRepo) Save(ctx context.Context, h *health.HealthStatus, ttl t
 	r.m[h.DeviceID] = h
 	return nil
 }
-

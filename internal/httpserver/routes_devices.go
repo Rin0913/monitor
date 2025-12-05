@@ -8,63 +8,63 @@ import (
 )
 
 type addDeviceRequest struct {
-    Address     string  `json:"address"`
-    CheckMethod *string `json:"check_method"`
-    IntervalSec *int    `json:"interval_sec"`
+	Address     string  `json:"address"`
+	CheckMethod *string `json:"check_method"`
+	IntervalSec *int    `json:"interval_sec"`
 }
 
 func (s *Server) addDevice(w http.ResponseWriter, r *http.Request) {
-    if r.Method != http.MethodPost {
-        w.WriteHeader(http.StatusMethodNotAllowed)
-        return
-    }
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
 
-    var req addDeviceRequest
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        http.Error(w, "invalid json", http.StatusBadRequest)
-        return
-    }
+	var req addDeviceRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
 
-    if req.Address == "" {
-        http.Error(w, "missing address", http.StatusBadRequest)
-        return
-    }
+	if req.Address == "" {
+		http.Error(w, "missing address", http.StatusBadRequest)
+		return
+	}
 
-    checkMethod := "tcp_check"
-    if req.CheckMethod != nil {
-        if *req.CheckMethod == "" {
-            http.Error(w, "check_method cannot be empty", http.StatusBadRequest)
-            return
-        }
-        checkMethod = *req.CheckMethod
-    }
+	checkMethod := "tcp_check"
+	if req.CheckMethod != nil {
+		if *req.CheckMethod == "" {
+			http.Error(w, "check_method cannot be empty", http.StatusBadRequest)
+			return
+		}
+		checkMethod = *req.CheckMethod
+	}
 
-    interval := 10
-    if req.IntervalSec != nil {
-        if *req.IntervalSec <= 0 {
-            http.Error(w, "interval_sec must be > 0", http.StatusBadRequest)
-            return
-        }
-        interval = *req.IntervalSec
-    }
+	interval := 10
+	if req.IntervalSec != nil {
+		if *req.IntervalSec <= 0 {
+			http.Error(w, "interval_sec must be > 0", http.StatusBadRequest)
+			return
+		}
+		interval = *req.IntervalSec
+	}
 
-    d := &device.Device{
-        Address:     req.Address,
-        Name:        req.Address,
-        CheckMethod: checkMethod,
-        IntervalSec: interval,
-    }
+	d := &device.Device{
+		Address:     req.Address,
+		Name:        req.Address,
+		CheckMethod: checkMethod,
+		IntervalSec: interval,
+	}
 
-    if err := s.deviceRepo.Save(r.Context(), d); err != nil {
-        http.Error(w, "failed to save device", http.StatusInternalServerError)
-        return
-    }
+	if err := s.deviceRepo.Save(r.Context(), d); err != nil {
+		http.Error(w, "failed to save device", http.StatusInternalServerError)
+		return
+	}
 
-    s.scheduler.Add(d)
+	s.scheduler.Add(d)
 
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(http.StatusCreated)
-    _ = json.NewEncoder(w).Encode(d)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(d)
 }
 
 func (s *Server) listDevices(w http.ResponseWriter, r *http.Request) {
@@ -130,4 +130,3 @@ func (s *Server) registerDeviceRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /devices", s.listDevices)
 	mux.HandleFunc("GET /devices/{id}", s.getDeviceStatus)
 }
-

@@ -29,4 +29,3 @@ func NewClientFromEnv() *redis.Client {
 		DB:       db,
 	})
 }
-

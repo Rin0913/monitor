@@ -1,10 +1,10 @@
 package scheduler
 
 import (
-    "log"
 	"container/heap"
 	"context"
 	"errors"
+	"log"
 	"sync"
 	"time"
 
@@ -54,9 +54,9 @@ func (s *Scheduler) Bootstrap(ctx context.Context) error {
 	for _, d := range devices {
 		h, err := s.healthRepo.Get(ctx, d.ID)
 
-        if(err != nil) {
-            log.Printf("[WARN] %v", err)
-        }
+		if err != nil {
+			log.Printf("[WARN] %v", err)
+		}
 
 		interval := time.Duration(d.IntervalSec) * time.Second
 		if interval <= 0 {
@@ -85,7 +85,6 @@ func (s *Scheduler) Bootstrap(ctx context.Context) error {
 func (s *Scheduler) Add(d *device.Device) {
 	s.addWithNextRun(d, time.Now())
 }
-
 
 func (s *Scheduler) addWithNextRun(d *device.Device, t time.Time) {
 	job := &CheckJob{
@@ -197,4 +196,3 @@ func (s *Scheduler) TryNextJob(ctx context.Context) (*CheckJob, error) {
 
 	return job, nil
 }
-

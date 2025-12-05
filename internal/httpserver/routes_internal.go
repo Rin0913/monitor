@@ -161,7 +161,7 @@ func (s *Server) workerReportJob(w http.ResponseWriter, r *http.Request) {
 		DeviceID:  req.DeviceID,
 		Status:    req.Status,
 		Latency:   req.LatencyMS,
-        Runner:    req.WorkerID,
+		Runner:    req.WorkerID,
 		LastCheck: checkedAt,
 		Data: map[string]interface{}{
 			"job_id": req.JobID,

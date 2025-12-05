@@ -215,4 +215,3 @@ func TestRun_DevicesFlow(t *testing.T) {
 	cancel()
 	waitForShutdown(t, errCh)
 }
-

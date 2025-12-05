@@ -90,9 +90,8 @@ func main() {
 	if err := run(ctx); err != nil {
 		log.Fatalf("[ERROR] server exited with error: %v", err)
 	} else {
-	    log.Println("[INFO] http server stopped")
-    }
+		log.Println("[INFO] http server stopped")
+	}
 
 	log.Println("[INFO] Goodbye!")
 }
-

@@ -7,7 +7,6 @@ type HealthStatus struct {
 	Status    string                 `json:"status"`
 	Latency   int                    `json:"latency_ms"`
 	LastCheck time.Time              `json:"last_check"`
-    Runner    string                 `json:"runner"`
+	Runner    string                 `json:"runner"`
 	Data      map[string]interface{} `json:"data,omitempty"`
 }
-

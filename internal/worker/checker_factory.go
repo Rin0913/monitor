@@ -1,16 +1,16 @@
 package worker
 
 import (
-    "os"
 	"bytes"
 	"context"
 	"fmt"
+	"log"
+	"os"
 	"os/exec"
 	"time"
-    "log"
 
-    "go.yaml.in/yaml/v4"
 	"github.com/Rin0913/monitor/internal/scheduler"
+	"go.yaml.in/yaml/v4"
 )
 
 type CheckerConfig struct {
@@ -40,8 +40,8 @@ func (e *Engine) LoadConfig(path string) error {
 		switch entry.Type {
 		case "command":
 			e.MakeCommandChecker(name, entry.Command)
-            log.Printf("Load command `%s`: %s\n", name, entry.Command)
-        }
+			log.Printf("Load command `%s`: %s\n", name, entry.Command)
+		}
 	}
 
 	return nil
@@ -53,7 +53,7 @@ func (e *Engine) MakeCommandChecker(name string, command string) {
 
 		cmdStr := fmt.Sprintf("%s %s", command, job.Address)
 		cmd := exec.CommandContext(ctx, "sh", "-c", cmdStr)
-        
+
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
@@ -77,4 +77,3 @@ func (e *Engine) MakeCommandChecker(name string, command string) {
 
 	e.RegisterChecker(name, fn)
 }
-

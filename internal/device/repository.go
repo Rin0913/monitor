@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	deviceIDsKey       = "device:ids"
-	deviceIDKeyPrefix  = "device:id:"
+	deviceIDsKey        = "device:ids"
+	deviceIDKeyPrefix   = "device:id:"
 	deviceAddrKeyPrefix = "device:addr:"
 )
 
@@ -176,4 +176,3 @@ func (r *RedisRepository) DeleteByID(ctx context.Context, id string) error {
 	_, err = pipe.Exec(ctx)
 	return err
 }
-
