@@ -1,31 +1,30 @@
 package main
 
 import (
-    "os"
-    "fmt"
-    "errors"
-    "strconv"
-    "context"
+	"context"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
 	"time"
-    "os/signal"
-    "syscall"
 
-    "github.com/Rin0913/monitor/internal/httpserver"
-    "github.com/Rin0913/monitor/internal/redisclient"
-    "github.com/Rin0913/monitor/internal/worker"
+	"github.com/Rin0913/monitor/internal/httpserver"
+	"github.com/Rin0913/monitor/internal/redisclient"
+	"github.com/Rin0913/monitor/internal/worker"
 )
 
-func main() {
-    redisClient := redisclient.NewClientFromEnv()
-    httpServer := httpserver.NewServer(redisClient)
-	
-    mux := http.NewServeMux()
+func run(ctx context.Context) error {
+	redisClient := redisclient.NewClientFromEnv()
+	httpServer := httpserver.NewServer(redisClient)
 
-    httpServer.RegisterRoutes(mux)
+	mux := http.NewServeMux()
+	httpServer.RegisterRoutes(mux)
 
-    addr := ":8080"
+	addr := ":8080"
 	s := &http.Server{
 		Addr:           addr,
 		Handler:        mux,
@@ -34,45 +33,66 @@ func main() {
 		MaxHeaderBytes: 1 << 20,
 	}
 
-    engine := worker.NewEngine()
-    _ = engine.LoadConfig("checkers.yaml")
+	engine := worker.NewEngine()
+	_ = engine.LoadConfig("checkers.yaml")
 
-    workerNum, _ := strconv.Atoi(os.Getenv("LOCAL_WORKER_NUM"))
-    ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	workerNum := 1
+	if n, err := strconv.Atoi(os.Getenv("LOCAL_WORKER_NUM")); err == nil && n > 0 {
+		workerNum = n
+	}
+
+	for i := 0; i < workerNum; i++ {
+		iw := worker.NewInternalWorker(
+			fmt.Sprintf("internal%d", i+1),
+			engine,
+			httpServer.HealthRepo(),
+			httpServer.Scheduler(),
+		)
+
+		go func(id int) {
+			if err := iw.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+				log.Printf("[WARN] internal worker %d stopped with error: %v", id, err)
+			} else {
+				log.Printf("[INFO] internal worker %d stopped", id)
+			}
+		}(i + 1)
+	}
+
+	errCh := make(chan error, 1)
+
+	go func() {
+		log.Printf("[INFO] http server listening on %s", addr)
+		if err := s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		log.Println("[INFO] shutdown signal received")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := s.Shutdown(shutdownCtx); err != nil {
+			return err
+		}
+		return nil
+
+	case err := <-errCh:
+		return err
+	}
+}
+
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-    for i := 0; i < workerNum; i++ {
-        iw := worker.NewInternalWorker(
-            fmt.Sprintf("internal%d", i + 1),
-            engine,
-            httpServer.HealthRepo(),
-            httpServer.Scheduler(),
-        )
-
-        go func(id int) {
-            _ = iw.Run(ctx)
-        }(i + 1)
-    }
-
-    go func() {
-        log.Printf("[INFO] http server listening on %s", addr)
-        err := s.ListenAndServe()
-        if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("[ERROR] http server error: %v", err)
-		}
-    }()
-
-    <-ctx.Done()
-    log.Println("[INFO] shutdown signal received")
-
-    shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-    if err := s.Shutdown(shutdownCtx); err != nil {
-		log.Printf("[ERROR] http server shutdown error: %v", err)
-    } else {
-        log.Println("[INFO] http server stopped")
+	if err := run(ctx); err != nil {
+		log.Fatalf("[ERROR] server exited with error: %v", err)
+	} else {
+	    log.Println("[INFO] http server stopped")
     }
 
 	log.Println("[INFO] Goodbye!")
 }
+

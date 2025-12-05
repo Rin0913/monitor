@@ -159,3 +159,42 @@ func (s *Scheduler) NextJob(ctx context.Context) (*CheckJob, error) {
 	}
 }
 
+func (s *Scheduler) TryNextJob(ctx context.Context) (*CheckJob, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if ctx != nil && ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	if s.closed {
+		return nil, ErrClosed
+	}
+
+	if len(s.jobs) == 0 {
+		return nil, nil
+	}
+
+	top := s.jobs[0]
+	now := time.Now()
+	if top.nextRun.After(now) {
+		return nil, nil
+	}
+
+	job := heap.Pop(&s.jobs).(*CheckJob)
+
+	interval := time.Duration(job.IntervalSec) * time.Second
+	if interval <= 0 {
+		interval = 60 * time.Second
+	}
+	next := job.nextRun.Add(interval)
+	if next.Before(now) {
+		next = now.Add(interval)
+	}
+
+	nextJob := *job
+	nextJob.nextRun = next
+	heap.Push(&s.jobs, &nextJob)
+
+	return job, nil
+}
+
