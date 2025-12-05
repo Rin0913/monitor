@@ -1,10 +1,16 @@
 package main
 
 import (
+    "os"
+    "fmt"
+    "errors"
+    "strconv"
     "context"
 	"log"
 	"net/http"
 	"time"
+    "os/signal"
+    "syscall"
 
     "github.com/Rin0913/monitor/internal/httpserver"
     "github.com/Rin0913/monitor/internal/redisclient"
@@ -28,17 +34,45 @@ func main() {
 		MaxHeaderBytes: 1 << 20,
 	}
 
-    iw := worker.NewInternalWorker(
-        worker.NewEngine(),
-        httpServer.HealthRepo(),
-        httpServer.Scheduler())
+    engine := worker.NewEngine()
+    _ = engine.LoadConfig("checkers.yaml")
 
-    ctx := context.Background()
+    workerNum, _ := strconv.Atoi(os.Getenv("LOCAL_WORKER_NUM"))
+    ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+    for i := 0; i < workerNum; i++ {
+        iw := worker.NewInternalWorker(
+            fmt.Sprintf("internal%d", i + 1),
+            engine,
+            httpServer.HealthRepo(),
+            httpServer.Scheduler(),
+        )
+
+        go func(id int) {
+            _ = iw.Run(ctx)
+        }(i + 1)
+    }
 
     go func() {
-        _ = iw.Run(ctx)
+        log.Printf("[INFO] http server listening on %s", addr)
+        err := s.ListenAndServe()
+        if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("[ERROR] http server error: %v", err)
+		}
     }()
 
-    log.Printf("listening on %s", addr)
-    log.Fatal(s.ListenAndServe())
+    <-ctx.Done()
+    log.Println("[INFO] shutdown signal received")
+
+    shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+    if err := s.Shutdown(shutdownCtx); err != nil {
+		log.Printf("[ERROR] http server shutdown error: %v", err)
+    } else {
+        log.Println("[INFO] http server stopped")
+    }
+
+	log.Println("[INFO] Goodbye!")
 }

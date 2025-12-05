@@ -21,6 +21,7 @@ type workerPollRequest struct {
 }
 
 type workerReportRequest struct {
+	WorkerID  string     `json:"worker_id"`
 	JobID     string     `json:"job_id"`
 	DeviceID  string     `json:"device_id"`
 	Status    string     `json:"status"`
@@ -160,6 +161,7 @@ func (s *Server) workerReportJob(w http.ResponseWriter, r *http.Request) {
 		DeviceID:  req.DeviceID,
 		Status:    req.Status,
 		Latency:   req.LatencyMS,
+        Runner:    req.WorkerID,
 		LastCheck: checkedAt,
 		Data: map[string]interface{}{
 			"job_id": req.JobID,

@@ -1,0 +1,12 @@
+checkers:
+  cmd_ping:
+    type: command
+    command: "ping -c 1"
+
+  cmd_curl:
+    type: command
+    command: "curl -s -o /dev/null"
+
+  cmd_nc:
+    type: command
+    command: "nc -z"
