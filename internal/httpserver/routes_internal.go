@@ -26,7 +26,7 @@ type workerReportRequest struct {
 	DeviceID  string     `json:"device_id"`
 	Status    string     `json:"status"`
 	LatencyMS int        `json:"latency_ms"`
-	CheckedAt *time.Time `json:"checked_at,omitempty"`
+	LastCheck *time.Time `json:"last_check,omitempty"`
 }
 
 func (s *Server) verifyWorkerRequest(r *http.Request, body []byte) bool {
@@ -102,7 +102,7 @@ func (s *Server) workerPollJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job, err := s.scheduler.NextJob(r.Context())
+	job, err := s.scheduler.TryNextJob(r.Context())
 	if err != nil {
 		if errors.Is(err, scheduler.ErrClosed) {
 			http.Error(w, "scheduler closed", http.StatusServiceUnavailable)
@@ -153,8 +153,8 @@ func (s *Server) workerReportJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	checkedAt := time.Now()
-	if req.CheckedAt != nil && !req.CheckedAt.IsZero() {
-		checkedAt = *req.CheckedAt
+	if req.LastCheck != nil && !req.LastCheck.IsZero() {
+		checkedAt = *req.LastCheck
 	}
 
 	h := &health.HealthStatus{

@@ -1,90 +1,22 @@
-package main
+package e2e
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
 )
 
-func startTestServer(t *testing.T) (context.Context, context.CancelFunc, chan error) {
-	t.Helper()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	errCh := make(chan error, 1)
-
-	go func() {
-		errCh <- run(ctx)
-	}()
-
-	return ctx, cancel, errCh
-}
-
-func waitForShutdown(t *testing.T, errCh chan error) {
-	t.Helper()
-
-	select {
-	case <-time.After(5 * time.Second):
-		t.Fatalf("run(ctx) did not exit after cancel")
-	case err := <-errCh:
-		if err != nil {
-			t.Fatalf("run(ctx) returned error: %v", err)
-		}
-	}
-}
-
-func waitForHealthReady(t *testing.T, client *http.Client, baseURL string) *http.Response {
-	t.Helper()
-
-	var resp *http.Response
-	var err error
-
-	for i := 0; i < 10; i++ {
-		resp, err = client.Get(baseURL + "/health")
-		if err == nil {
-			return resp
-		}
-		time.Sleep(200 * time.Millisecond)
+func TestRemoteWorker_E2E(t *testing.T) {
+	if os.Getenv("REDIS_ADDR") == "" && os.Getenv("REDIS_URL") == "" {
+		t.Skip("redis not configured for e2e")
 	}
 
-	t.Fatalf("failed to call /health: %v", err)
-	return nil
-}
-
-func TestRun_HealthEndpoint(t *testing.T) {
-	_, cancel, errCh := startTestServer(t)
-	defer cancel()
-
-	client := &http.Client{
-		Timeout: 3 * time.Second,
-	}
-	baseURL := "http://127.0.0.1:8080"
-
-	resp := waitForHealthReady(t, client, baseURL)
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("unexpected status code from /health: %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("read /health body error: %v", err)
-	}
-	if len(body) == 0 {
-		t.Fatalf("empty response body from /health")
-	}
-
-	cancel()
-	waitForShutdown(t, errCh)
-}
-
-func TestRun_DevicesFlow(t *testing.T) {
-	_, cancel, errCh := startTestServer(t)
-	defer cancel()
+	serverCtx, serverCancel, serverErrCh := startServer(t, 0)
+	defer serverCancel()
 
 	client := &http.Client{
 		Timeout: 5 * time.Second,
@@ -93,6 +25,9 @@ func TestRun_DevicesFlow(t *testing.T) {
 
 	resp := waitForHealthReady(t, client, baseURL)
 	resp.Body.Close()
+
+	workerCtx, workerCancel, workerErrCh := startWorker(t, baseURL, os.Getenv("PRESHARED_WORKER_KEY"))
+	defer workerCancel()
 
 	postJSON := func(path, payload string) *http.Response {
 		r, err := client.Post(baseURL+path, "application/json", strings.NewReader(payload))
@@ -212,6 +147,12 @@ func TestRun_DevicesFlow(t *testing.T) {
 		t.Fatalf("unexpected web health status: %+v", hWeb)
 	}
 
-	cancel()
-	waitForShutdown(t, errCh)
+	workerCancel()
+	waitForShutdown(t, workerErrCh)
+
+	serverCancel()
+	waitForShutdown(t, serverErrCh)
+
+	_ = serverCtx
+	_ = workerCtx
 }
