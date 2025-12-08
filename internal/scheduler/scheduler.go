@@ -118,10 +118,24 @@ func (s *Scheduler) NextJob(ctx context.Context) (*CheckJob, error) {
 			return nil, ErrClosed
 		}
 
-		if len(s.jobs) == 0 {
-			s.cond.Wait()
+		for len(s.jobs) == 0 {
+			waitCh := make(chan struct{})
+
+			go func() {
+				s.mu.Lock()
+				defer s.mu.Unlock()
+				s.cond.Wait()
+				close(waitCh)
+			}()
+
 			s.mu.Unlock()
-			continue
+
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-waitCh:
+				s.mu.Lock()
+			}
 		}
 
 		top := s.jobs[0]

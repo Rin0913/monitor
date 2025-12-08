@@ -24,5 +24,4 @@ services:
     environment:
       REDIS_ADDR: "redis:6379"
       PRESHARED_WORKER_KEY: "abc123"
-      # LOCAL_WORKER_NUM is defined in the test programs
     command: ["go", "test", "-v", "./..."]

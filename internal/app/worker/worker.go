@@ -2,9 +2,9 @@ package worker
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/Rin0913/monitor/internal/worker"
 )
@@ -13,23 +13,18 @@ func Run(ctx context.Context, serverURL string, workerID string, workerKey strin
 	engine := worker.NewEngine()
 	_ = engine.LoadConfig("checkers.yaml")
 
-	for i := 0; i < workerNum; i++ {
-		w := worker.NewRemoteWorker(
-			fmt.Sprintf("%s#%d", workerID, i+1),
+	manager := worker.NewManager(workerNum, 2*time.Second, func(id int) worker.Worker {
+		return worker.NewRemoteWorker(
+			fmt.Sprintf("%s#%d", workerID, id),
 			engine,
 			serverURL,
 			workerID,
 			workerKey,
 		)
+	})
 
-		go func(id int) {
-			if err := w.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
-				log.Printf("[WARN] internal worker %d stopped with error: %v", id, err)
-			} else {
-				log.Printf("[INFO] internal worker %d stopped", id)
-			}
-		}(i + 1)
-	}
+	manager.Start(ctx)
+	defer manager.Stop()
 
 	<-ctx.Done()
 	log.Println("[INFO] shutdown signal received")

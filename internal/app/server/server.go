@@ -32,22 +32,17 @@ func Run(ctx context.Context, workerNum int) error {
 	engine := worker.NewEngine()
 	_ = engine.LoadConfig("checkers.yaml")
 
-	for i := 0; i < workerNum; i++ {
-		iw := worker.NewInternalWorker(
-			fmt.Sprintf("internal%d", i+1),
+	manager := worker.NewManager(workerNum, 2*time.Second, func(id int) worker.Worker {
+		return worker.NewInternalWorker(
+			fmt.Sprintf("internal#%d", id),
 			engine,
 			httpServer.HealthRepo(),
 			httpServer.Scheduler(),
 		)
+	})
 
-		go func(id int) {
-			if err := iw.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
-				log.Printf("[WARN] internal worker %d stopped with error: %v", id, err)
-			} else {
-				log.Printf("[INFO] internal worker %d stopped", id)
-			}
-		}(i + 1)
-	}
+	manager.Start(ctx)
+	defer manager.Stop()
 
 	errCh := make(chan error, 1)
 

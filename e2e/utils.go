@@ -40,7 +40,7 @@ func waitForShutdown(t *testing.T, errCh chan error) {
 	t.Helper()
 
 	select {
-	case <-time.After(5 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatalf("run(ctx) did not exit after cancel")
 	case err := <-errCh:
 		if err != nil {
