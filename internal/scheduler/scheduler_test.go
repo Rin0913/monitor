@@ -98,6 +98,9 @@ func TestBootstrapUsesHealthForNextRun(t *testing.T) {
 	if j2 != nil {
 		t.Fatalf("second job is not produced yet")
 	}
+	if err != nil {
+		t.Fatalf("error occurs in unblocking TryNextJob: %v", err)
+	}
 }
 
 // Some trivial definitions

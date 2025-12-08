@@ -31,9 +31,7 @@ func Run(ctx context.Context, serverURL string, workerID string, workerKey strin
 		}(i + 1)
 	}
 
-	select {
-	case <-ctx.Done():
-		log.Println("[INFO] shutdown signal received")
-		return nil
-	}
+	<-ctx.Done()
+	log.Println("[INFO] shutdown signal received")
+	return nil
 }

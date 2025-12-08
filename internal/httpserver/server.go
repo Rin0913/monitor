@@ -24,7 +24,7 @@ func NewServer(redisClient *redis.Client) *Server {
 	healthRepo := health.NewRedisRepository(redisClient)
 	scheduler := scheduler.New(deviceRepo, healthRepo)
 
-	scheduler.Bootstrap(context.Background())
+	_ = scheduler.Bootstrap(context.Background())
 
 	return &Server{
 		deviceRepo:         deviceRepo,
